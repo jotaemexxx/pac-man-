@@ -16,18 +16,17 @@ namespace PacMan.Models
 
         public void AddEdge(int source, int destination)
         {
-            if(!AdjacencyList.ContainsKey(source))
-            {
+            if (!AdjacencyList.ContainsKey(source))
                 AdjacencyList[source] = new List<int>();
-            }
 
-            if(!AdjacencyList.ContainsKey(destination))
-            {
+            if (!AdjacencyList.ContainsKey(destination))
                 AdjacencyList[destination] = new List<int>();
-            }
 
-            AdjacencyList[source].Add(destination);
-            AdjacencyList[destination].Add(source);
+            if (!AdjacencyList[source].Contains(destination))
+                AdjacencyList[source].Add(destination);
+
+            if (!AdjacencyList[destination].Contains(source))
+                AdjacencyList[destination].Add(source);
         }
 
         public void PrintGraph()

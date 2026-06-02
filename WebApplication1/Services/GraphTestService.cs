@@ -7,12 +7,19 @@ namespace PacMan.Services
     {
         public void Run()
         {
-            Graph graph = new Graph();
+            MazeService mazeService = new MazeService();
 
-            graph.AddEdge(1, 2);
-            graph.AddEdge(1, 3);
-            graph.AddEdge(2, 4);
+            int[,] maze = {
 
+                {1, 1, 1, 1, 1 },
+                {1, 0, 0, 0, 1 },
+                {1, 0, 1, 0, 1 },
+                {1, 0, 0, 0, 1 },
+                {1, 1 ,1, 1, 1 }
+
+            };
+
+            Graph graph = mazeService.BuildGraph(maze);
             graph.PrintGraph();
 
         }
