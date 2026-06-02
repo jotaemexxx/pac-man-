@@ -12,9 +12,9 @@ namespace PacMan.Models
         {
             CurrentNode = startNode;
             Color = color;
+
+
+
         }
-
-
-
     }
 }
