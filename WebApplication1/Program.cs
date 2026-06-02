@@ -1,16 +1,20 @@
 using PacMan.Services;
+using PacMan.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// 1. Registra o SignalR
+builder.Services.AddSignalR();
+
+// 2. Registra o GameService como Singleton
+// Singleton = uma única instância para todos os jogadores
+builder.Services.AddSingleton<GameService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -18,9 +22,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Serve arquivos estáticos (nosso frontend)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseAuthorization();
 
 app.MapControllers();
+
+// 3. Mapeia o Hub no endpoint /gameHub
+app.MapHub<GameHub>("/gameHub");
 
 GraphTestService test = new GraphTestService();
 test.Run();
