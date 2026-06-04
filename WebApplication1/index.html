@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PAC-MAN</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap');
+
+    :root {
+      --bg:        #0a0a0f;
+      --panel:     #0f0f1a;
+      --border:    #1a1a2e;
+      --yellow:    #ffe000;
+      --yellow-glow: rgba(255,224,0,0.35);
+      --red:       #ff3c3c;
+      --cyan:      #00e5ff;
+      --pink:      #ff6ec7;
+      --blue-ghost:#4a90ff;
+      --dot-color: #ffd54f;
+      --wall:      #0d2b55;
+      --wall-edge: #1565c0;
+      --path:      #080818;
+      --text:      #e0e0ff;
+      --score-glow: 0 0 12px #ffe000, 0 0 30px rgba(255,224,0,0.4);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Press Start 2P', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.07) 2px,
+        rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* Stars background */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.15) 0%, transparent 100%),
+        radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.1) 0%, transparent 100%),
+        radial-gradient(1px 1px at 50% 70%, rgba(255,255,255,0.12) 0%, transparent 100%),
+        radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.08) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.1) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      text-align: center;
+    }
+
+    .title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: clamp(1.8rem, 5vw, 3.2rem);
+      color: var(--yellow);
+      text-shadow: 0 0 10px var(--yellow), 0 0 30px var(--yellow-glow), 0 0 60px rgba(255,224,0,0.2);
+      letter-spacing: 0.15em;
+      animation: flicker 4s infinite;
+    }
+
+    @keyframes flicker {
+      0%, 95%, 100% { opacity: 1; }
+      96% { opacity: 0.85; }
+      97% { opacity: 1; }
+      98% { opacity: 0.7; }
+      99% { opacity: 1; }
+    }
+
+    .subtitle {
+      font-size: 0.45rem;
+      color: var(--cyan);
+      letter-spacing: 0.3em;
+      margin-top: 6px;
+      opacity: 0.8;
+    }
+
+    /* ── SCORE BAR ── */
+    .score-bar {
+      display: flex;
+      gap: 40px;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 10px 28px;
+      border-radius: 4px;
+    }
+
+    .score-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .score-label {
+      font-size: 0.38rem;
+      color: var(--cyan);
+      letter-spacing: 0.2em;
+    }
+
+    .score-value {
+      font-size: 1rem;
+      color: var(--yellow);
+      text-shadow: var(--score-glow);
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* ── GAME AREA ── */
+    .game-area {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    /* ── MAZE ── */
+    .maze-container {
+      position: relative;
+      border: 2px solid var(--wall-edge);
+      box-shadow: 0 0 0 4px var(--wall), 0 0 30px rgba(21,101,192,0.4), inset 0 0 20px rgba(0,0,0,0.5);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    #maze {
+      display: grid;
+      gap: 0;
+    }
+
+    .cell {
+      width: 56px;
+      height: 56px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cell.wall {
+      background: var(--wall);
+      border: 1px solid var(--wall-edge);
+      box-shadow: inset 0 0 8px rgba(21,101,192,0.3);
+    }
+
+    .cell.path {
+      background: var(--path);
+    }
+
+    /* Dot */
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--dot-color);
+      box-shadow: 0 0 6px var(--dot-color), 0 0 12px rgba(255,213,79,0.5);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(0.7); opacity: 0.6; }
+    }
+
+    /* Pac-Man */
+    .pacman {
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      transition: left 0.15s ease, top 0.15s ease;
+      z-index: 10;
+    }
+
+    .pacman svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 8px var(--yellow)) drop-shadow(0 0 16px var(--yellow-glow));
+      animation: chomp 0.3s steps(2) infinite;
+    }
+
+    @keyframes chomp {
+      0%  { clip-path: polygon(50% 50%, 100% 15%, 100% 85%,  50% 50%); }
+      50% { clip-path: polygon(50% 50%, 100% 0%,  100% 100%, 50% 50%); }
+    }
+
+    /* Ghost */
+    .ghost {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      transition: left 0.2s ease, top 0.2s ease;
+      z-index: 9;
+    }
+
+    .ghost svg {
+      width: 100%;
+      height: 100%;
+      animation: ghost-float 1.2s ease-in-out infinite;
+      filter: drop-shadow(0 0 6px currentColor);
+    }
+
+    @keyframes ghost-float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-3px); }
+    }
+
+    /* ── SIDE PANEL ── */
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 200px;
+    }
+
+    .panel-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px;
+    }
+
+    .panel-title {
+      font-size: 0.38rem;
+      color: var(--cyan);
+      letter-spacing: 0.2em;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    /* Controls grid */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      place-items: center;
+    }
+
+    .key-btn {
+      width: 44px;
+      height: 44px;
+      background: #111128;
+      border: 1px solid var(--border);
+      border-bottom: 3px solid var(--wall-edge);
+      border-radius: 6px;
+      color: var(--yellow);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.08s;
+      user-select: none;
+    }
+
+    .key-btn:active, .key-btn.pressed {
+      background: #1a1a3a;
+      border-bottom-width: 1px;
+      transform: translateY(2px);
+      box-shadow: 0 0 8px var(--yellow-glow);
+    }
+
+    .key-btn.empty { visibility: hidden; }
+
+    /* Status */
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .status-dot.connected { background: #00e676; box-shadow: 0 0 6px #00e676; }
+    .status-dot.disconnected { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+    .status-text {
+      font-size: 0.35rem;
+      color: var(--text);
+      opacity: 0.8;
+    }
+
+    /* Dots remaining */
+    .dots-count {
+      font-size: 0.8rem;
+      color: var(--dot-color);
+      text-shadow: 0 0 8px var(--dot-color);
+    }
+
+    /* Legend */
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 0.32rem;
+      color: var(--text);
+      opacity: 0.7;
+    }
+
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── OVERLAY ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      gap: 24px;
+      backdrop-filter: blur(4px);
+    }
+
+    .overlay.hidden { display: none; }
+
+    .overlay-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      text-align: center;
+      animation: overlay-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .overlay-title.lose { color: var(--red); text-shadow: 0 0 20px var(--red), 0 0 40px rgba(255,60,60,0.4); }
+    .overlay-title.win  { color: var(--yellow); text-shadow: var(--score-glow); }
+
+    @keyframes overlay-pop {
+      from { transform: scale(0.5); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .overlay-sub {
+      font-size: 0.5rem;
+      color: var(--cyan);
+      letter-spacing: 0.2em;
+    }
+
+    .overlay-score {
+      font-size: 0.6rem;
+      color: var(--text);
+    }
+
+    .btn-restart {
+      background: transparent;
+      border: 2px solid var(--yellow);
+      color: var(--yellow);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      padding: 14px 28px;
+      cursor: pointer;
+      border-radius: 4px;
+      letter-spacing: 0.1em;
+      transition: all 0.15s;
+      margin-top: 8px;
+    }
+
+    .btn-restart:hover {
+      background: var(--yellow);
+      color: var(--bg);
+      box-shadow: var(--score-glow);
+    }
+
+    /* connecting screen */
+    .connecting {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--yellow);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .connecting-text {
+      font-size: 0.4rem;
+      color: var(--cyan);
+      letter-spacing: 0.15em;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Overlay: conectando -->
+<div class="overlay" id="overlay-connecting">
+  <div class="connecting">
+    <div class="spinner"></div>
+    <div class="connecting-text">CONECTANDO AO SERVIDOR...</div>
+  </div>
+</div>
+
+<!-- Overlay: game over -->
+<div class="overlay hidden" id="overlay-gameover">
+  <div class="overlay-title lose">GAME OVER</div>
+  <div class="overlay-sub">OS FANTASMAS TE PEGARAM</div>
+  <div class="overlay-score" id="final-score-lose"></div>
+  <button class="btn-restart" onclick="location.reload()">▶ JOGAR NOVAMENTE</button>
+</div>
+
+<!-- Overlay: vitória -->
+<div class="overlay hidden" id="overlay-win">
+  <div class="overlay-title win">YOU WIN!</div>
+  <div class="overlay-sub">TODOS OS DOTS COLETADOS</div>
+  <div class="overlay-score" id="final-score-win"></div>
+  <button class="btn-restart" onclick="location.reload()">▶ JOGAR NOVAMENTE</button>
+</div>
+
+<div class="wrapper">
+  <header>
+    <div class="title">PAC-MAN</div>
+    <div class="subtitle">GRAPH EDITION · ASP.NET SIGNALR</div>
+  </header>
+
+  <div class="score-bar">
+    <div class="score-item">
+      <span class="score-label">SCORE</span>
+      <span class="score-value" id="score">0</span>
+    </div>
+    <div class="score-item">
+      <span class="score-label">DOTS</span>
+      <span class="score-value dots-count" id="dots-left">--</span>
+    </div>
+  </div>
+
+  <div class="game-area">
+
+    <!-- Maze -->
+    <div class="maze-container">
+      <div id="maze"></div>
+      <!-- Pac-Man sprite (absolute) -->
+      <div class="pacman" id="pacman-sprite">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="48" fill="#ffe000"/>
+          <polygon points="50,50 100,20 100,80" fill="#0a0a0f"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Side panel -->
+    <div class="side-panel">
+
+      <!-- Status -->
+      <div class="panel-box">
+        <div class="panel-title">● STATUS</div>
+        <div style="display:flex;align-items:center;">
+          <span class="status-dot disconnected" id="status-dot"></span>
+          <span class="status-text" id="status-text">Desconectado</span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="panel-box">
+        <div class="panel-title">◈ CONTROLES</div>
+        <div class="controls-grid">
+          <div class="key-btn empty"></div>
+          <button class="key-btn" id="btn-up"    data-dir="up">▲</button>
+          <div class="key-btn empty"></div>
+          <button class="key-btn" id="btn-left"  data-dir="left">◄</button>
+          <button class="key-btn" id="btn-down"  data-dir="down">▼</button>
+          <button class="key-btn" id="btn-right" data-dir="right">►</button>
+        </div>
+        <div style="margin-top:10px;font-size:0.3rem;color:var(--text);opacity:0.5;line-height:1.8;">
+          USE AS SETAS DO TECLADO OU OS BOTÕES
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="panel-box">
+        <div class="panel-title">◉ LEGENDA</div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:#ffe000;box-shadow:0 0 6px #ffe000;"></div>
+          PAC-MAN
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:#ff3c3c;box-shadow:0 0 6px #ff3c3c;"></div>
+          FANTASMA
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:#ffd54f;box-shadow:0 0 6px #ffd54f;width:8px;height:8px;"></div>
+          DOT (+10 pts)
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:#0d2b55;border:1px solid #1565c0;border-radius:2px;"></div>
+          PAREDE
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+//  CONFIG
+// ──────────────────────────────────────────────
+const MAZE_ROWS = 5;
+const MAZE_COLS = 5;
+const CELL_SIZE = 56; // px — must match CSS .cell size
+
+const MAZE_LAYOUT = [
+  [1, 1, 1, 1, 1],
+  [1, 0, 0, 0, 1],
+  [1, 0, 1, 0, 1],
+  [1, 0, 0, 0, 0],
+  [1, 1, 1, 1, 1]
+];
+
+// ──────────────────────────────────────────────
+//  BUILD STATIC MAZE
+// ──────────────────────────────────────────────
+const mazeEl = document.getElementById('maze');
+mazeEl.style.gridTemplateColumns = `repeat(${MAZE_COLS}, ${CELL_SIZE}px)`;
+mazeEl.style.gridTemplateRows    = `repeat(${MAZE_ROWS}, ${CELL_SIZE}px)`;
+
+// cell elements indexed by nodeId
+const cellEls = {};
+
+for (let r = 0; r < MAZE_ROWS; r++) {
+  for (let c = 0; c < MAZE_COLS; c++) {
+    const cell = document.createElement('div');
+    cell.classList.add('cell');
+    if (MAZE_LAYOUT[r][c] === 1) {
+      cell.classList.add('wall');
+    } else {
+      cell.classList.add('path');
+      const id = r * MAZE_COLS + c;
+      cell.dataset.id = id;
+      cellEls[id] = cell;
+
+      // initial dot
+      const dot = document.createElement('div');
+      dot.classList.add('dot');
+      dot.id = `dot-${id}`;
+      cell.appendChild(dot);
+    }
+    mazeEl.appendChild(cell);
+  }
+}
+
+// ──────────────────────────────────────────────
+//  HELPERS
+// ──────────────────────────────────────────────
+function cellPos(row, col) {
+  // returns {left, top} offset relative to maze container for absolute sprites
+  return {
+    left: col * CELL_SIZE + (CELL_SIZE - 38) / 2,
+    top:  row * CELL_SIZE + (CELL_SIZE - 38) / 2
+  };
+}
+
+function moveSpriteToNode(el, row, col) {
+  const p = cellPos(row, col);
+  el.style.left = p.left + 'px';
+  el.style.top  = p.top  + 'px';
+}
+
+// Adjust maze container to be position:relative for absolute children
+document.querySelector('.maze-container').style.position = 'relative';
+mazeEl.style.position = 'relative';
+
+// ──────────────────────────────────────────────
+//  GHOST SPRITES
+// ──────────────────────────────────────────────
+const ghostSprites = {}; // color -> DOM element
+
+function getOrCreateGhost(color) {
+  if (ghostSprites[color]) return ghostSprites[color];
+
+  const ghostColors = {
+    red:   { body: '#ff3c3c', eye: '#fff', pupil: '#00f' },
+    pink:  { body: '#ff6ec7', eye: '#fff', pupil: '#00f' },
+    cyan:  { body: '#00e5ff', eye: '#fff', pupil: '#00f' },
+    blue:  { body: '#4a90ff', eye: '#fff', pupil: '#00f' },
+  };
+  const c = ghostColors[color] || { body: color, eye: '#fff', pupil: '#00f' };
+
+  const el = document.createElement('div');
+  el.classList.add('ghost');
+  el.style.color = c.body;
+  el.innerHTML = `
+    <svg viewBox="0 0 100 110" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10,110 Q10,80 10,60 Q10,10 50,10 Q90,10 90,60 Q90,80 90,110
+               Q80,95 70,110 Q60,95 50,110 Q40,95 30,110 Q20,95 10,110 Z"
+            fill="${c.body}"/>
+      <ellipse cx="36" cy="55" rx="12" ry="14" fill="${c.eye}"/>
+      <ellipse cx="64" cy="55" rx="12" ry="14" fill="${c.eye}"/>
+      <ellipse cx="39" cy="58" rx="6"  ry="7"  fill="${c.pupil}"/>
+      <ellipse cx="67" cy="58" rx="6"  ry="7"  fill="${c.pupil}"/>
+    </svg>`;
+  el.style.position = 'absolute';
+  el.style.width  = '36px';
+  el.style.height = '36px';
+  mazeEl.appendChild(el);
+  ghostSprites[color] = el;
+  return el;
+}
+
+// ──────────────────────────────────────────────
+//  SIGNALR CONNECTION
+// ──────────────────────────────────────────────
+const connection = new signalR.HubConnectionBuilder()
+  .withUrl('/gameHub')
+  .withAutomaticReconnect()
+  .build();
+
+const statusDot  = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+const scoreEl    = document.getElementById('score');
+const dotsLeftEl = document.getElementById('dots-left');
+const pacmanSprite = document.getElementById('pacman-sprite');
+pacmanSprite.style.position = 'absolute';
+
+let currentScore = 0;
+
+function setStatus(connected) {
+  statusDot.className = 'status-dot ' + (connected ? 'connected' : 'disconnected');
+  statusText.textContent = connected ? 'Conectado' : 'Desconectado';
+}
+
+// ──────────────────────────────────────────────
+//  UPDATE STATE
+// ──────────────────────────────────────────────
+connection.on('updateState', (state) => {
+  // Pac-Man
+  moveSpriteToNode(pacmanSprite, state.pacman.row, state.pacman.col);
+  scoreEl.textContent = state.pacman.score;
+  currentScore = state.pacman.score;
+
+  // Dots
+  // Rebuild: show all dots that are still in state.dots
+  const activeDots = new Set(state.dots);
+  Object.entries(cellEls).forEach(([id, cell]) => {
+    const dot = document.getElementById(`dot-${id}`);
+    if (!dot) return;
+    dot.style.display = activeDots.has(parseInt(id)) ? '' : 'none';
+  });
+  dotsLeftEl.textContent = state.dots.length;
+
+  // Ghosts
+  state.ghosts.forEach(g => {
+    const el = getOrCreateGhost(g.color);
+    moveSpriteToNode(el, g.row, g.col);
+  });
+});
+
+// ──────────────────────────────────────────────
+//  GAME OVER / WIN
+// ──────────────────────────────────────────────
+connection.on('gameOver', () => {
+  document.getElementById('final-score-lose').textContent = `PONTUAÇÃO FINAL: ${currentScore}`;
+  document.getElementById('overlay-gameover').classList.remove('hidden');
+});
+
+connection.on('gameWin', () => {
+  document.getElementById('final-score-win').textContent = `PONTUAÇÃO FINAL: ${currentScore}`;
+  document.getElementById('overlay-win').classList.remove('hidden');
+});
+
+// ──────────────────────────────────────────────
+//  MOVEMENT LOGIC
+// ──────────────────────────────────────────────
+
+// Build adjacency from maze layout (mirrors backend MazeService)
+const adjacency = {};
+for (let r = 0; r < MAZE_ROWS; r++) {
+  for (let c = 0; c < MAZE_COLS; c++) {
+    if (MAZE_LAYOUT[r][c] === 1) continue;
+    const id = r * MAZE_COLS + c;
+    adjacency[id] = [];
+    const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+    dirs.forEach(([dr, dc]) => {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < MAZE_ROWS && nc >= 0 && nc < MAZE_COLS && MAZE_LAYOUT[nr][nc] === 0) {
+        adjacency[id].push(nr * MAZE_COLS + nc);
+      }
+    });
+  }
+}
+
+let pacmanNodeId = 6; // starting node (row1,col1)
+
+function tryMove(direction) {
+  const r = Math.floor(pacmanNodeId / MAZE_COLS);
+  const c = pacmanNodeId % MAZE_COLS;
+  const deltas = { up: [-1,0], down: [1,0], left: [0,-1], right: [0,1] };
+  const [dr, dc] = deltas[direction];
+  const nr = r + dr, nc = c + dc;
+  if (nr < 0 || nr >= MAZE_ROWS || nc < 0 || nc >= MAZE_COLS) return;
+  if (MAZE_LAYOUT[nr][nc] === 1) return;
+  const dest = nr * MAZE_COLS + nc;
+  pacmanNodeId = dest;
+
+  // Rotate pacman sprite
+  const rotations = { right: 0, down: 90, left: 180, up: 270 };
+  pacmanSprite.style.transform = `rotate(${rotations[direction]}deg)`;
+
+  connection.invoke('MovePlayer', dest).catch(console.error);
+}
+
+// Keyboard
+const dirKeys = {
+  ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+  w: 'up', s: 'down', a: 'left', d: 'right',
+  W: 'up', S: 'down', A: 'left', D: 'right'
+};
+
+document.addEventListener('keydown', e => {
+  const dir = dirKeys[e.key];
+  if (dir) { e.preventDefault(); tryMove(dir); highlightBtn(dir); }
+});
+document.addEventListener('keyup', e => {
+  const dir = dirKeys[e.key];
+  if (dir) unhighlightBtn(dir);
+});
+
+// Buttons
+document.querySelectorAll('.key-btn[data-dir]').forEach(btn => {
+  btn.addEventListener('mousedown',  () => { tryMove(btn.dataset.dir); btn.classList.add('pressed'); });
+  btn.addEventListener('mouseup',    () => btn.classList.remove('pressed'));
+  btn.addEventListener('mouseleave', () => btn.classList.remove('pressed'));
+  btn.addEventListener('touchstart', e => { e.preventDefault(); tryMove(btn.dataset.dir); btn.classList.add('pressed'); });
+  btn.addEventListener('touchend',   () => btn.classList.remove('pressed'));
+});
+
+function highlightBtn(dir) {
+  const map = { up:'btn-up', down:'btn-down', left:'btn-left', right:'btn-right' };
+  document.getElementById(map[dir])?.classList.add('pressed');
+}
+function unhighlightBtn(dir) {
+  const map = { up:'btn-up', down:'btn-down', left:'btn-left', right:'btn-right' };
+  document.getElementById(map[dir])?.classList.remove('pressed');
+}
+
+// ──────────────────────────────────────────────
+//  START CONNECTION
+// ──────────────────────────────────────────────
+async function start() {
+  try {
+    await connection.start();
+    setStatus(true);
+    document.getElementById('overlay-connecting').classList.add('hidden');
+    await connection.invoke('GetState');
+  } catch (err) {
+    console.error('SignalR connection error:', err);
+    setTimeout(start, 3000);
+  }
+}
+
+connection.onreconnecting(() => setStatus(false));
+connection.onreconnected(async () => {
+  setStatus(true);
+  await connection.invoke('GetState');
+});
+connection.onclose(() => setStatus(false));
+
+start();
+</script>
+</body>
+</html>
