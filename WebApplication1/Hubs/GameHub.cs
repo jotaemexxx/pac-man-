@@ -11,10 +11,10 @@ namespace PacMan.Hubs
         {
             _gameService = gameService;
         }
+
         public async Task MovePlayer(int destination)
         {
             _gameService.MovePlayer(destination);
-            _gameService.MoveGhosts();
 
             if (_gameService.CheckCollision())
             {
@@ -49,6 +49,28 @@ namespace PacMan.Hubs
 
         public async Task GetState()
         {
+            await Clients.Caller.SendAsync("updateState", new
+            {
+                pacman = new
+                {
+                    nodeId = _gameService.Pacman.CurrentNode.Id,
+                    row = _gameService.Pacman.CurrentNode.Row,
+                    col = _gameService.Pacman.CurrentNode.Col,
+                    score = _gameService.Pacman.Score
+                },
+                ghosts = _gameService.Ghosts.Select(g => new {
+                    nodeId = g.CurrentNode.Id,
+                    row = g.CurrentNode.Row,
+                    col = g.CurrentNode.Col,
+                    color = g.Color
+                }),
+                dots = _gameService.Dots
+            });
+        }
+
+        public async Task RestartGame()
+        {
+            _gameService.RestartGame();
             await Clients.Caller.SendAsync("updateState", new
             {
                 pacman = new
