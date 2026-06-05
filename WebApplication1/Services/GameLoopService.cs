@@ -52,7 +52,7 @@ namespace PacMan.Services
                 }
 
                 var elapsed = (DateTime.UtcNow - start).TotalMilliseconds;
-                var remaining = 1000 - (int)elapsed;
+                var remaining = 400 - (int)elapsed;
                 if (remaining > 0)
                     await Task.Delay(remaining, stoppingToken);
             }
