@@ -56,6 +56,6 @@ Acesse diretamente pelo navegador, sem precisar instalar nada:
 
 ---
 
-## 📌 Status do projeto
+## Status do projeto
 
 🚧 Em desenvolvimento
