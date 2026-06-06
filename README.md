@@ -4,7 +4,7 @@ Recriação do clássico jogo Pac-Man desenvolvido com C# (ASP.NET) e HTML/CSS/J
 O projeto utiliza **grafos** como estrutura de dados central para representar o labirinto
 e calcular a movimentação dos personagens.
 
-## 🗺️ Estrutura de Grafos no Projeto
+## Estrutura de Grafos no Projeto
 
 O grafo é a estrutura principal do jogo. Cada posição do labirinto é um nó,
 e as conexões entre posições adjacentes são as arestas.
@@ -20,19 +20,19 @@ e as conexões entre posições adjacentes são as arestas.
 - **`WebApplication1/Models/Player.cs`** → Utilizam o grafo para movimentação do Pac-Man
 - **`WebApplication1/Models/Ghost.cs`** → Utilizam o grafo para movimentação dos fantasmas
 
-## 🎮 Como jogar
+## Como jogar
 
 - Use as **setas do teclado** para mover o Pac-Man
 - Coma todos os pontos do labirinto para vencer a fase
 - Fuja dos fantasmas — se um deles te pegar, você perde uma vida
 
-## 🚀 Como rodar o projeto
+## Como rodar o projeto
 
-### ▶️ Jogar online
+### Jogar online
 Acesse diretamente pelo navegador, sem precisar instalar nada:
 **https://pac-man-production-0f1e.up.railway.app/**
 
-### 💻 Rodar localmente
+### Rodar localmente
 ### Pré-requisitos
 - [Visual Studio](https://visualstudio.microsoft.com/) instalado
 - .NET instalado (já vem com o Visual Studio)
@@ -48,7 +48,7 @@ Acesse diretamente pelo navegador, sem precisar instalar nada:
 
 ---
 
-## 🛠️ Tecnologias utilizadas
+## Tecnologias utilizadas
 
 - C# / ASP.NET
 - HTML5, CSS3, JavaScript
@@ -58,4 +58,4 @@ Acesse diretamente pelo navegador, sem precisar instalar nada:
 
 ## Status do projeto
 
-🚧 Em desenvolvimento
+ Em desenvolvimento
