@@ -1,4 +1,4 @@
-# 🕹️ Pac-Man
+# Pac-Man
 
 Recriação do clássico jogo Pac-Man desenvolvido com C# (ASP.NET) e HTML/CSS/JavaScript.
 O projeto utiliza **grafos** como estrutura de dados central para representar o labirinto
