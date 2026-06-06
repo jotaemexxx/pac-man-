@@ -53,9 +53,3 @@ Acesse diretamente pelo navegador, sem precisar instalar nada:
 - C# / ASP.NET
 - HTML5, CSS3, JavaScript
 - Algoritmos de grafos: BFS e DFS
-
----
-
-## Status do projeto
-
- Em desenvolvimento
