@@ -37,5 +37,6 @@ app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<GameHub>("/gameHub");
+app.MapGet("/health", () => "OK");
 
 app.Run();
