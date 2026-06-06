@@ -40,7 +40,7 @@ Acesse diretamente pelo navegador, sem precisar instalar nada:
 ### Passos
 1. Clone o repositório:
 ```bash
-   git clone https://github.com/SEU_USUARIO/pac-man-
+   git clone https://github.com/jotaemexxx/pac-man
 ```
 2. Abra o arquivo `PacMan.slnx` no Visual Studio
 3. Pressione **F5** para rodar
